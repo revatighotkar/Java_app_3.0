@@ -1,0 +1,93 @@
+@Library('my-shared-library') _
+
+pipeline {
+
+    agent any
+
+    parameters {
+        choice(name: 'action', choices: 'create\ndelete', description: 'Choose create or destroy')
+        string(name: 'aws_account_id', defaultValue: '603478816732', description: 'AWS Account ID')
+        string(name: 'Region', defaultValue: 'us-east-1', description: 'AWS Region')
+        string(name: 'ECR_REPO_NAME', defaultValue: 'ecr-repo', description: 'ECR Repo Name')
+        string(name: 'cluster', defaultValue: 'demo-cluster1', description: 'EKS Cluster Name')
+    }
+
+    stages {
+
+        stage('Git Checkout') {
+            when { expression { params.action == 'create' } }
+            steps {
+                gitCheckout(
+                    branch: "main",
+                    url: "https://github.com/revatighotkar/Java_app_3.0.git"
+                )
+            }
+        }
+
+        stage('Create EKS Cluster : Terraform') {
+            when { expression { params.action == 'create' } }
+            steps {
+                script {
+                    withCredentials([[
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'aws-creds'
+                    ]]) {
+                        dir('eks_module') {
+                            sh """
+                              export AWS_DEFAULT_REGION=${params.Region}
+
+                              terraform init
+                              terraform plan \
+                                -var 'region=${params.Region}' \
+                                --var-file=./config/terraform.tfvars
+
+                              terraform apply \
+                                -var 'region=${params.Region}' \
+                                --var-file=./config/terraform.tfvars \
+                                --auto-approve
+                            """
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Connect to EKS') {
+            when { expression { params.action == 'create' } }
+            steps {
+                script {
+                    withCredentials([[
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'aws-creds'
+                    ]]) {
+                        sh """
+                          export AWS_DEFAULT_REGION=${params.Region}
+                          aws eks --region ${params.Region} update-kubeconfig --name ${params.cluster}
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Deployment on EKS Cluster') {
+            when { expression { params.action == 'create' } }
+            steps {
+                script {
+                    def apply = false
+                    try {
+                        input message: 'Please confirm deployment to EKS', ok: 'Deploy'
+                        apply = true
+                    } catch (err) {
+                        currentBuild.result = 'UNSTABLE'
+                    }
+
+                    if (apply) {
+                        sh """
+                          kubectl apply -f .
+                        """
+                    }
+                }
+            }
+        }
+    }
+}
