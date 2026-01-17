@@ -1,93 +1,175 @@
 @Library('my-shared-library') _
 
-pipeline {
+pipeline{
 
     agent any
 
-    parameters {
-        choice(name: 'action', choices: 'create\ndelete', description: 'Choose create or destroy')
-        string(name: 'aws_account_id', defaultValue: '603478816732', description: 'AWS Account ID')
-        string(name: 'Region', defaultValue: 'us-east-1', description: 'AWS Region')
-        string(name: 'ECR_REPO_NAME', defaultValue: 'ecr-repo', description: 'ECR Repo Name')
-        string(name: 'cluster', defaultValue: 'demo-cluster1', description: 'EKS Cluster Name')
+    parameters{
+
+        choice(name: 'action', choices: 'create\ndelete', description: 'Choose create/Destroy')
+        string(name: 'aws_account_id', description: " AWS Account ID", defaultValue: '603478816732')
+        string(name: 'Region', description: "Region of ECR", defaultValue: 'us-east-1')
+        string(name: 'ECR_REPO_NAME', description: "name of the ECR", defaultValue: 'ecr-repo')
+        string(name: 'cluster', description: "name of the EKS Cluster", defaultValue: 'demo-cluster1')
+        string(name: 'AWS_ACCESS_KEY_ID', description: "AWS Access Key ID")
+        string(name: 'AWS_SECRET_KEY_ID', description: "AWS Secret Key ID")
+
+    }
+    environment{
+
+        ACCESS_KEY = credentials('AWS_ACCESS_KEY_ID')
+        SECRET_KEY = credentials('AWS_SECRET_KEY_ID')
     }
 
-    stages {
-
-        stage('Git Checkout') {
-            when { expression { params.action == 'create' } }
-            steps {
-                gitCheckout(
-                    branch: "main",
-                    url: "https://github.com/revatighotkar/Java_app_3.0.git"
-                )
+    stages{
+         
+        stage('Git Checkout'){
+                    when { expression {  params.action == 'create' } }
+            steps{
+            gitCheckout(
+                branch: "main",
+                url: "https://github.com/DEVOPS-WITH-WEB-DEV/Java_App_Session2.git"
+            )
             }
         }
+    //      stage('Unit Test maven'){
+         
+    //      when { expression {  params.action == 'create' } }
 
-        stage('Create EKS Cluster : Terraform') {
-            when { expression { params.action == 'create' } }
-            steps {
-                script {
-                    withCredentials([[
-                        $class: 'AmazonWebServicesCredentialsBinding',
-                        credentialsId: 'aws-cred'
-                    ]]) {
-                        dir('eks_module') {
-                            sh """
-                              export AWS_DEFAULT_REGION=${params.Region}
+    //         steps{
+    //            script{
+                   
+    //                mvnTest()
+    //            }
+    //         }
+    //     }
+    //      stage('Integration Test maven'){
+    //      when { expression {  params.action == 'create' } }
+    //         steps{
+    //            script{
+                   
+    //                mvnIntegrationTest()
+    //            }
+    //         }
+    //     }
+    //     stage('Static code analysis: Sonarqube'){
+    //      when { expression {  params.action == 'create' } }
+    //         steps{
+    //            script{
+                   
+    //                def SonarQubecredentialsId = 'sonarqube-api'
+    //                statiCodeAnalysis(SonarQubecredentialsId)
+    //            }
+    //         }
+    //     }
+    //     stage('Quality Gate Status Check : Sonarqube'){
+    //      when { expression {  params.action == 'create' } }
+    //         steps{
+    //            script{
+                   
+    //                def SonarQubecredentialsId = 'sonarqube-api'
+    //                QualityGateStatus(SonarQubecredentialsId)
+    //            }
+    //         }
+    //     }
+    //     stage('Maven Build : maven'){
+    //      when { expression {  params.action == 'create' } }
+    //         steps{
+    //            script{
+                   
+    //                mvnBuild()
+    //            }
+    //         }
+    //     }
+    //     stage('Docker Image Build : ECR'){
+    //      when { expression {  params.action == 'create' } }
+    //         steps{
+    //            script{
+                   
+    //                dockerBuild("${params.aws_account_id}","${params.Region}","${params.ECR_REPO_NAME}")
+    //            }
+    //         }
+    //     }
+    // stage('Docker Image Scan: trivy '){
+    //      when { expression {  params.action == 'create' } }
+    //         steps{
+    //            script{
+                   
+    //                dockerImageScan("${params.aws_account_id}","${params.Region}","${params.ECR_REPO_NAME}")
+    //            }
+    //         }
+    //     }
+    //     stage('Docker Image Push : ECR '){
+    //      when { expression {  params.action == 'create' } }
+    //         steps{
+    //            script{
+                   
+    //                dockerImagePush("${params.aws_account_id}","${params.Region}","${params.ECR_REPO_NAME}")
+    //            }
+    //         }
+    //     }   
+    //     stage('Docker Image Cleanup : ECR '){
+    //      when { expression {  params.action == 'create' } }
+    //         steps{
+    //            script{
+                   
+    //                dockerImageCleanup("${params.aws_account_id}","${params.Region}","${params.ECR_REPO_NAME}")
+    //            }
+    //         }
+    //     } 
+        stage('Create EKS Cluster : Terraform'){
+            when { expression {  params.action == 'create' } }
+            steps{
+                script{
 
-                              terraform init
-                              terraform plan \
-                                -var 'region=${params.Region}' \
-                                --var-file=./config/terraform.tfvars
-
-                              terraform apply \
-                                -var 'region=${params.Region}' \
-                                --var-file=./config/terraform.tfvars \
-                                --auto-approve
-                            """
-                        }
-                    }
+                    dir('eks_module') {
+                      sh """
+                          
+                          terraform init 
+                          terraform plan -var 'access_key=$AWS_ACCESS_KEY_ID' -var 'secret_key=$AWS_SECRET_KEY_ID' -var 'region=${params.Region}' --var-file=./config/terraform.tfvars
+                          terraform apply -var 'access_key=$AWS_ACCESS_KEY_ID' -var 'secret_key=$AWS_SECRET_KEY_ID' -var 'region=${params.Region}' --var-file=./config/terraform.tfvars --auto-approve
+                      """
+                  }
                 }
             }
         }
+        stage('Connect to EKS '){
+            when { expression {  params.action == 'create' } }
+        steps{
 
-        stage('Connect to EKS') {
-            when { expression { params.action == 'create' } }
-            steps {
-                script {
-                    withCredentials([[
-                        $class: 'AmazonWebServicesCredentialsBinding',
-                        credentialsId: 'aws-creds'
-                    ]]) {
-                        sh """
-                          export AWS_DEFAULT_REGION=${params.Region}
-                          aws eks --region ${params.Region} update-kubeconfig --name ${params.cluster}
-                        """
-                    }
-                }
+            script{
+
+                sh """
+                aws configure set aws_access_key_id "$AWS_ACCESS_KEY_ID"
+                aws configure set aws_secret_access_key "$AWS_SECRET_KEY_ID"
+                aws configure set region "${params.Region}"
+                aws eks --region ${params.Region} update-kubeconfig --name ${params.cluster}
+                """
             }
         }
+        } 
+        stage('Deployment on EKS Cluster'){
+            when { expression {  params.action == 'create' } }
+            steps{
+                script{
+                  
+                  def apply = false
 
-        stage('Deployment on EKS Cluster') {
-            when { expression { params.action == 'create' } }
-            steps {
-                script {
-                    def apply = false
-                    try {
-                        input message: 'Please confirm deployment to EKS', ok: 'Deploy'
-                        apply = true
-                    } catch (err) {
-                        currentBuild.result = 'UNSTABLE'
-                    }
+                  try{
+                    input message: 'please confirm to deploy on eks', ok: 'Ready to apply the config ?'
+                    apply = true
+                  }catch(err){
+                    apply= false
+                    currentBuild.result  = 'UNSTABLE'
+                  }
+                  if(apply){
 
-                    if (apply) {
-                        sh """
-                          kubectl apply -f .
-                        """
-                    }
+                    sh """
+                      kubectl apply -f .
+                    """
+                  }
                 }
             }
-        }
+        }    
     }
 }
