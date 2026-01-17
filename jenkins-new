@@ -30,7 +30,7 @@ pipeline {
                 script {
                     withCredentials([[
                         $class: 'AmazonWebServicesCredentialsBinding',
-                        credentialsId: 'aws-creds'
+                        credentialsId: 'aws-cred'
                     ]]) {
                         dir('eks_module') {
                             sh """
