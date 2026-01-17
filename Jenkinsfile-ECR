@@ -11,6 +11,9 @@ pipeline{
         string(name: 'Region', description: "Region of ECR", defaultValue: 'us-east-1')
         string(name: 'ECR_REPO_NAME', description: "name of the ECR", defaultValue: 'ecr-repo')
         string(name: 'cluster', description: "name of the EKS Cluster", defaultValue: 'demo-cluster1')
+        string(name: 'AWS_ACCESS_KEY_ID', description: "AWS Access Key ID")
+        string(name: 'AWS_SECRET_KEY_ID', description: "AWS Secret Key ID")
+
     }
     environment{
 
@@ -123,8 +126,8 @@ pipeline{
                       sh """
                           
                           terraform init 
-                          terraform plan -var 'access_key=$ACCESS_KEY' -var 'secret_key=$SECRET_KEY' -var 'region=${params.Region}' --var-file=./config/terraform.tfvars
-                          terraform apply -var 'access_key=$ACCESS_KEY' -var 'secret_key=$SECRET_KEY' -var 'region=${params.Region}' --var-file=./config/terraform.tfvars --auto-approve
+                          terraform plan -var 'access_key=$AWS_ACCESS_KEY_ID' -var 'secret_key=$AWS_SECRET_KEY_ID' -var 'region=${params.Region}' --var-file=./config/terraform.tfvars
+                          terraform apply -var 'access_key=$AWS_ACCESS_KEY_ID' -var 'secret_key=$AWS_SECRET_KEY_ID' -var 'region=${params.Region}' --var-file=./config/terraform.tfvars --auto-approve
                       """
                   }
                 }
@@ -137,8 +140,8 @@ pipeline{
             script{
 
                 sh """
-                aws configure set aws_access_key_id "$ACCESS_KEY"
-                aws configure set aws_secret_access_key "$SECRET_KEY"
+                aws configure set aws_access_key_id "$AWS_ACCESS_KEY_ID"
+                aws configure set aws_secret_access_key "$AWS_SECRET_KEY_ID"
                 aws configure set region "${params.Region}"
                 aws eks --region ${params.Region} update-kubeconfig --name ${params.cluster}
                 """
