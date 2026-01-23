@@ -17,6 +17,7 @@ pipeline{
         PATH = "${JAVA_HOME}/bin:${env.PATH}"
     }
 
+
     stages{
          
         stage('Git Checkout'){
@@ -24,7 +25,7 @@ pipeline{
             steps{
             gitCheckout(
                 branch: "main",
-                url: "https://github.com/praveen1994dec/Java_app_3.0.git"
+                url: "https://github.com/revatighotkar/Java_app_3.0.git"
             )
             }
         }
@@ -115,3 +116,5 @@ pipeline{
         }      
     }
 }
+    
+    
